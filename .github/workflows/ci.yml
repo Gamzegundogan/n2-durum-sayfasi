@@ -82,18 +82,29 @@ jobs:
         run: |
           $job = Start-Job { kubectl port-forward svc/n2-durum-sayfasi -n n2-durum 18080:80 }
           Start-Sleep -Seconds 10
-          Write-Host "--- port-forward job durumu ve ciktisi ---"
           Write-Host "Job state: $($job.State)"
           Receive-Job $job -Keep
-          Write-Host "--- PowerShell ile dogrudan test (debug) ---"
-          try {
-            $r = Invoke-WebRequest -Uri http://127.0.0.1:18080/ -UseBasicParsing -TimeoutSec 5
-            Write-Host "Invoke-WebRequest basarili, status: $($r.StatusCode)"
-          } catch {
-            Write-Host "Invoke-WebRequest HATASI: $($_.Exception.Message)"
+
+          $fail = 0
+          function Check($path, $expected) {
+            try {
+              $r = Invoke-WebRequest -Uri "http://127.0.0.1:18080$path" -UseBasicParsing -TimeoutSec 5 -SkipHttpErrorCheck
+              $code = $r.StatusCode
+            } catch {
+              $code = 0
+            }
+            if ($code -eq $expected) {
+              Write-Host "OK   - GET $path -> $code"
+            } else {
+              Write-Host "FAIL - GET $path -> $code (beklenen: $expected)"
+              $script:fail = 1
+            }
           }
-          Write-Host "--- smoke test basliyor (bash/curl ile) ---"
-          bash scripts/smoke-test.sh http://127.0.0.1:18080
-          $exitCode = $LASTEXITCODE
+
+          Check "/" 200
+          Check "/healthz" 200
+          Check "/bu-yol-yok" 404
+
           Stop-Job $job; Remove-Job $job
-          exit $exitCode
+          if ($fail -ne 0) { exit 1 }
+          Write-Host "Smoke test basarili."
