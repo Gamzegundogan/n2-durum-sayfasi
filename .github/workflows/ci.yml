@@ -85,7 +85,14 @@ jobs:
           Write-Host "--- port-forward job durumu ve ciktisi ---"
           Write-Host "Job state: $($job.State)"
           Receive-Job $job -Keep
-          Write-Host "--- smoke test basliyor ---"
+          Write-Host "--- PowerShell ile dogrudan test (debug) ---"
+          try {
+            $r = Invoke-WebRequest -Uri http://127.0.0.1:18080/ -UseBasicParsing -TimeoutSec 5
+            Write-Host "Invoke-WebRequest basarili, status: $($r.StatusCode)"
+          } catch {
+            Write-Host "Invoke-WebRequest HATASI: $($_.Exception.Message)"
+          }
+          Write-Host "--- smoke test basliyor (bash/curl ile) ---"
           bash scripts/smoke-test.sh http://127.0.0.1:18080
           $exitCode = $LASTEXITCODE
           Stop-Job $job; Remove-Job $job
