@@ -76,35 +76,32 @@ jobs:
     needs: deploy
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
-      - name: Port-forward baslat ve smoke test calistir
+      - name: "Smoke test (cluster icinden, Service DNS uzerinden - host networking sorunlarini bypass eder)"
         shell: powershell
         run: |
-          $job = Start-Job { kubectl port-forward svc/n2-durum-sayfasi -n n2-durum 18080:80 }
-          Start-Sleep -Seconds 10
-          Write-Host "Job state: $($job.State)"
-          Receive-Job $job -Keep
-
-          $fail = 0
-          function Check($path, $expected) {
-            try {
-              $r = Invoke-WebRequest -Uri "http://127.0.0.1:18080$path" -UseBasicParsing -TimeoutSec 5 -SkipHttpErrorCheck
-              $code = $r.StatusCode
-            } catch {
-              $code = 0
-            }
+          function CheckPath($path, $expected) {
+            $podName = "smoke-" + [guid]::NewGuid().ToString().Substring(0,8)
+            $code = kubectl run $podName -n n2-durum --restart=Never --rm -i `
+              --image=curlimages/curl:8.9.1 --command -- `
+              curl -s -o /dev/null -w "%{http_code}" "http://n2-durum-sayfasi$path" 2>$null
+            $code = ($code | Select-Object -Last 1).Trim()
             if ($code -eq $expected) {
               Write-Host "OK   - GET $path -> $code"
+              return $true
             } else {
               Write-Host "FAIL - GET $path -> $code (beklenen: $expected)"
-              $script:fail = 1
+              return $false
             }
           }
 
-          Check "/" 200
-          Check "/healthz" 200
-          Check "/bu-yol-yok" 404
+          $r1 = CheckPath "/" "200"
+          $r2 = CheckPath "/healthz" "200"
+          $r3 = CheckPath "/bu-yol-yok" "404"
 
-          Stop-Job $job; Remove-Job $job
-          if ($fail -ne 0) { exit 1 }
-          Write-Host "Smoke test basarili."
+          if ($r1 -and $r2 -and $r3) {
+            Write-Host "Smoke test basarili."
+            exit 0
+          } else {
+            Write-Host "Smoke test basarisiz."
+            exit 1
+          }
