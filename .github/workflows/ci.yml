@@ -81,7 +81,11 @@ jobs:
         shell: powershell
         run: |
           $job = Start-Job { kubectl port-forward svc/n2-durum-sayfasi -n n2-durum 18080:80 }
-          Start-Sleep -Seconds 5
+          Start-Sleep -Seconds 10
+          Write-Host "--- port-forward job durumu ve ciktisi ---"
+          Write-Host "Job state: $($job.State)"
+          Receive-Job $job -Keep
+          Write-Host "--- smoke test basliyor ---"
           bash scripts/smoke-test.sh http://localhost:18080
           $exitCode = $LASTEXITCODE
           Stop-Job $job; Remove-Job $job
