@@ -1,0 +1,10 @@
+.git
+.gitignore
+README.md
+docs/
+evidence/
+scripts/
+deploy/
+compose.yaml
+pipeline.yml
+*.md

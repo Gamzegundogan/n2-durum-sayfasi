@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="N2 servislerinin güncel çalışma durumunu ve planlı bakım duyurularını gösteren örnek durum sayfası."
+    >
+    <title>N2 Sistem Durumu</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="N2 Sistem Durumu ana sayfa">
+        <span class="brand-mark" aria-hidden="true">N2</span>
+        <span>
+          <strong>N2 Sistem Durumu</strong>
+          <small>Servis sağlık ve bakım bilgileri</small>
+        </span>
+      </a>
+
+      <a class="header-link" href="#maintenance">Planlı bakım</a>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">CANLI DURUM</p>
+          <h1 id="page-title">Tüm sistemler çalışıyor</h1>
+          <p class="hero-copy">
+            Temel servisler normal şekilde hizmet veriyor. Aktif bir kesinti veya
+            performans sorunu bulunmuyor.
+          </p>
+        </div>
+
+        <div class="overall-status" role="status">
+          <span class="pulse" aria-hidden="true"></span>
+          Operasyonel
+        </div>
+      </section>
+
+      <section class="content-section" aria-labelledby="services-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">SERVİSLER</p>
+            <h2 id="services-title">Anlık servis durumu</h2>
+          </div>
+          <p>Son kontrol: 4 Ağustos 2026, 09:30</p>
+        </div>
+
+        <div class="service-grid">
+          <article class="service-card">
+            <div class="service-card__top">
+              <span class="service-icon" aria-hidden="true">API</span>
+              <span class="status-badge status-badge--ok">
+                <span aria-hidden="true"></span> Çalışıyor
+              </span>
+            </div>
+            <h3>Uygulama API</h3>
+            <p>İstemci isteklerini karşılayan ana uygulama servisi.</p>
+            <dl>
+              <div><dt>Çalışma oranı</dt><dd>%99,98</dd></div>
+              <div><dt>Yanıt süresi</dt><dd>84 ms</dd></div>
+            </dl>
+          </article>
+
+          <article class="service-card">
+            <div class="service-card__top">
+              <span class="service-icon" aria-hidden="true">WEB</span>
+              <span class="status-badge status-badge--ok">
+                <span aria-hidden="true"></span> Çalışıyor
+              </span>
+            </div>
+            <h3>Web Arayüzü</h3>
+            <p>Kullanıcıların sisteme eriştiği web uygulaması.</p>
+            <dl>
+              <div><dt>Çalışma oranı</dt><dd>%99,99</dd></div>
+              <div><dt>Yanıt süresi</dt><dd>112 ms</dd></div>
+            </dl>
+          </article>
+
+          <article class="service-card">
+            <div class="service-card__top">
+              <span class="service-icon" aria-hidden="true">DB</span>
+              <span class="status-badge status-badge--ok">
+                <span aria-hidden="true"></span> Çalışıyor
+              </span>
+            </div>
+            <h3>Veritabanı</h3>
+            <p>Uygulama verilerini güvenli biçimde saklayan servis.</p>
+            <dl>
+              <div><dt>Çalışma oranı</dt><dd>%100</dd></div>
+              <div><dt>Bağlantı süresi</dt><dd>18 ms</dd></div>
+            </dl>
+          </article>
+        </div>
+      </section>
+
+      <section id="maintenance" class="content-section" aria-labelledby="maintenance-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">DUYURULAR</p>
+            <h2 id="maintenance-title">Planlı bakım</h2>
+          </div>
+        </div>
+
+        <article class="maintenance-card">
+          <div class="calendar" aria-hidden="true">
+            <span>AĞU</span>
+            <strong>08</strong>
+          </div>
+          <div class="maintenance-copy">
+            <div class="maintenance-title-row">
+              <h3>Veritabanı güvenlik güncellemesi</h3>
+              <span class="status-badge status-badge--planned">Planlandı</span>
+            </div>
+            <p>
+              Güvenlik yamalarının uygulanması sırasında kısa süreli bağlantı
+              kesintileri yaşanabilir.
+            </p>
+            <ul class="maintenance-meta" aria-label="Bakım ayrıntıları">
+              <li>8 Ağustos 2026</li>
+              <li>02:00–03:00 TSİ</li>
+              <li>Beklenen etki: 5 dakika</li>
+            </ul>
+          </div>
+        </article>
+      </section>
+
+      <section class="content-section" aria-labelledby="history-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">GEÇMİŞ</p>
+            <h2 id="history-title">Son 7 gün</h2>
+          </div>
+        </div>
+
+        <div class="history-card">
+          <div>
+            <strong>Kesinti yaşanmadı</strong>
+            <p>Son yedi gün içinde kullanıcıları etkileyen bir olay kaydedilmedi.</p>
+          </div>
+          <div class="uptime-bar" aria-label="Son yedi günün tamamında sistem çalışıyordu">
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="uptime-labels"><span>7 gün önce</span><span>Bugün</span></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p><strong>N2 Sistem Durumu</strong> · Sürüm v1.0.0</p>
+      <p>
+        Sorun mu yaşıyorsunuz?
+        <a href="mailto:destek@example.com">destek@example.com</a>
+      </p>
+    </footer>
+  </body>
+</html>
