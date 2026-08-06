@@ -54,7 +54,7 @@ jobs:
       # Trivy ile bilinen zafiyet taraması. HIGH/CRITICAL bulgu varsa
       # pipeline durur -- yayınlama başarısız kalitede image ile yapılamaz.
       - name: Trivy taraması
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ${{ env.IMAGE_NAME }}:${{ needs.build.outputs.tag }}
           exit-code: "1"
