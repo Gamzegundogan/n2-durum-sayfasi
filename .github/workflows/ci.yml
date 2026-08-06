@@ -76,20 +76,21 @@ jobs:
     needs: deploy
     runs-on: self-hosted
     steps:
-      - name: "Smoke test (cluster icinden, Service DNS uzerinden - host networking sorunlarini bypass eder)"
+      - name: "Smoke test (calisan pod icine exec ile - en guvenilir yontem)"
         shell: powershell
         run: |
-          function CheckPath($path, $expected) {
-            $podName = "smoke-" + [guid]::NewGuid().ToString().Substring(0,8)
-            $code = kubectl run $podName -n n2-durum --restart=Never --rm -i `
-              --image=curlimages/curl:8.9.1 --command -- `
-              curl -s -o /dev/null -w "%{http_code}" "http://n2-durum-sayfasi$path" 2>$null
-            $code = ($code | Select-Object -Last 1).Trim()
-            if ($code -eq $expected) {
-              Write-Host "OK   - GET $path -> $code"
+          $podName = kubectl get pods -n n2-durum -l app=n2-durum-sayfasi -o jsonpath="{.items[0].metadata.name}"
+          Write-Host "Test edilecek pod: $podName"
+
+          function CheckPath($path, $expectedCode) {
+            $out = kubectl exec -n n2-durum $podName -- wget -q -O /dev/null --server-response "http://127.0.0.1:8080$path" 2>&1
+            $outText = ($out -join "`n")
+            if ($outText -match "HTTP/1.1 $expectedCode") {
+              Write-Host "OK   - GET $path -> $expectedCode"
               return $true
             } else {
-              Write-Host "FAIL - GET $path -> $code (beklenen: $expected)"
+              Write-Host "FAIL - GET $path -> beklenen $expectedCode, cikti:"
+              Write-Host $outText
               return $false
             }
           }
