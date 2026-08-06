@@ -1,0 +1,5 @@
+*.tar
+*.log
+.DS_Store
+image.tar
+actions-runner/
