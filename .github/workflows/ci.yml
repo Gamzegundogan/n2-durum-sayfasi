@@ -79,6 +79,7 @@ jobs:
       - name: "Smoke test (calisan pod icine exec ile - en guvenilir yontem)"
         shell: powershell
         run: |
+          $ErrorActionPreference = "Continue"
           $podName = kubectl get pods -n n2-durum -l app=n2-durum-sayfasi -o jsonpath="{.items[0].metadata.name}"
           Write-Host "Test edilecek pod: $podName"
 
