@@ -1,10 +1,10 @@
-# N2 Durum Sayfası — Frontend + Backend, Kubernetes ve CI/CD
+# N2 Durum Sayfası — Frontend + Backend + PostgreSQL, Kubernetes ve CI/CD
 
-İki katmanlı (frontend + backend) bir örnek uygulama: statik bir durum
-sayfası (Nginx) ile küçük bir Node.js API'si (backend), her ikisi de
-non-root konteynerlerde çalışır, Kubernetes üzerinde declarative
-(bildirimsel) yöntemle dağıtılır ve GitHub Actions ile uçtan uca
-otomatikleştirilir (CI/CD).
+3 katmanlı bir örnek uygulama: statik bir durum sayfası + ziyaretçi
+defteri (Nginx), bir Node.js/Express API'si (backend) ve kalıcı bir
+PostgreSQL veritabanı. Her katman non-root konteynerlerde çalışır,
+Kubernetes üzerinde declarative (bildirimsel) yöntemle dağıtılır ve
+GitHub Actions ile uçtan uca otomatikleştirilir (CI/CD).
 
 ## Mimari
 
@@ -13,7 +13,7 @@ Tarayıcı
    │
    ▼
 Nginx (frontend, 2 replica)
-   ├─ statik siteyi sunar (/)
+   ├─ statik siteyi ve ziyaretçi defteri arayüzünü sunar (/)
    ├─ sağlık kontrolü (/healthz)
    └─ /api/ isteklerini backend'e yönlendirir (reverse proxy)
          │
@@ -21,49 +21,56 @@ Nginx (frontend, 2 replica)
    Backend Service (ClusterIP)
          │
          ▼
-   Backend (Node.js, 2 replica) — /api/status: pod adı + zaman damgası döner
+   Backend (Node.js/Express, 2 replica)
+   ├─ /api/status    → pod adı + zaman damgası
+   └─ /api/guestbook → ziyaretçi mesajlarını okur/yazar
+         │
+         ▼
+   Veritabanı Service (ClusterIP)
+         │
+         ▼
+   PostgreSQL (1 replica, PersistentVolumeClaim ile kalıcı disk)
 ```
 
-Her iki katman da ayrı Deployment/Service olarak Kubernetes'te çalışır,
-birbirlerine Kubernetes'in kendi iç DNS'i (Service adı) üzerinden ulaşır.
+Her katman ayrı Deployment/Service olarak çalışır, birbirine
+Kubernetes'in kendi iç DNS'i (Service adı) üzerinden ulaşır.
+Veritabanı kimlik bilgileri bir Kubernetes Secret'ında tutulur.
 
 ## Ön koşullar
 
 - Docker (Compose dahil)
 - Bir Kubernetes cluster'ı ve `kubectl` (yerelde `minikube` önerilir,
   Windows'ta `--driver=docker` ile)
-- `curl`
+- `curl` / PowerShell (`Invoke-RestMethod`)
 
 ## Proje yapısı
 
 ```text
-site/            → Statik frontend dosyaları (index.html, style.css)
+site/            → Frontend dosyaları (index.html, style.css)
 nginx/           → Frontend'in Nginx yapılandırması (reverse proxy dahil)
-backend/         → Node.js backend kaynak kodu ve Dockerfile'ı
-deploy/          → Kubernetes manifestleri (Namespace, Deployment, Service)
+backend/         → Node.js/Express backend kaynak kodu ve Dockerfile'ı
+deploy/          → Kubernetes manifestleri:
+  namespace.yaml     → n2-durum namespace'i
+  deployment.yaml    → frontend Deployment
+  service.yaml       → frontend Service
+  backend.yaml       → backend Deployment + Service
+  db.yaml            → PostgreSQL PVC + Deployment + Service
+  db-secret.yaml     → veritabanı kimlik bilgileri (Secret)
 scripts/         → Test ve smoke-test script'leri
 docs/            → Mimari, ADR ve runbook dokümanları
 .github/workflows/ci.yml → CI/CD pipeline tanımı
 ```
 
-## Yerel çalıştırma (Docker Compose — sadece frontend)
+## Yerel çalıştırma (Docker Compose — frontend + backend + db)
 
 ```bash
 docker compose up -d --build
 curl http://localhost:8080/
-curl http://localhost:8080/healthz
-docker compose down
+curl http://localhost:3000/api/guestbook
+docker compose down -v
 ```
 
-## Backend'i yerelde tek başına çalıştırma
-
-```bash
-docker build -t n2-backend:0.1.0 ./backend
-docker run -d -p 3000:3000 n2-backend:0.1.0
-curl http://localhost:3000/api/status
-```
-
-## Kubernetes'e dağıtım (frontend + backend)
+## Kubernetes'e dağıtım (tüm katmanlar)
 
 1. Lokal cluster başlat (yoksa):
 ```bash
@@ -71,20 +78,24 @@ curl http://localhost:3000/api/status
 ```
 2. İmajları build et:
 ```bash
-   docker build -t n2-durum-sayfasi:0.1.0 .
-   docker build -t n2-backend:0.1.0 ./backend
+   docker build -t n2-durum-sayfasi:0.4.0 .
+   docker build -t n2-backend:0.2.0 ./backend
 ```
-3. minikube'a yükle:
+3. minikube'a yükle (PostgreSQL image'ı için gerekmez, Docker Hub'dan
+   otomatik çekilir):
 ```bash
-   minikube image load n2-durum-sayfasi:0.1.0
-   minikube image load n2-backend:0.1.0
+   minikube image load n2-durum-sayfasi:0.4.0
+   minikube image load n2-backend:0.2.0
 ```
-4. Manifestleri uygula (declarative):
+4. Manifestleri sırayla uygula (declarative):
 ```bash
    kubectl apply -f deploy/namespace.yaml
+   kubectl apply -f deploy/db-secret.yaml
+   kubectl apply -f deploy/db.yaml
    kubectl apply -f deploy/deployment.yaml
    kubectl apply -f deploy/service.yaml
    kubectl apply -f deploy/backend.yaml
+   kubectl -n n2-durum rollout status deploy/n2-db
    kubectl -n n2-durum rollout status deploy/n2-durum-sayfasi
    kubectl -n n2-durum rollout status deploy/n2-backend
 ```
@@ -92,9 +103,8 @@ curl http://localhost:3000/api/status
 ```bash
    minikube service n2-durum-sayfasi -n n2-durum
 ```
-   Açılan sayfada, backend'den gelen canlı veri ("Backend cevap verdi ->
-   Pod: ...") en üstte görünür. `/api/status` adresine giderek backend'in
-   JSON cevabını doğrudan da görebilirsin.
+   Açılan sayfada canlı backend bilgisini ve ziyaretçi defteri formunu
+   görürsün; forma yazılan mesajlar PostgreSQL'de kalıcı olarak saklanır.
 
 ## Yeni sürüm dağıtma / Rollback
 
@@ -104,7 +114,6 @@ kubectl -n n2-durum set image deploy/n2-backend backend=n2-backend:<yeni-tag>
 kubectl -n n2-durum rollout status deploy/n2-durum-sayfasi
 kubectl -n n2-durum rollout status deploy/n2-backend
 
-# geçmiş / geri alma
 kubectl -n n2-durum rollout history deploy/n2-durum-sayfasi
 kubectl -n n2-durum rollout undo deploy/n2-durum-sayfasi
 ```
@@ -115,29 +124,39 @@ kubectl -n n2-durum rollout undo deploy/n2-durum-sayfasi
 tetiklenir:
 
 1. **test** — statik dosya/config doğrulaması (bulut runner'ında)
-2. **build-frontend** / **build-backend** — iki image paralel build edilir
-   (self-hosted runner'da, çünkü sonraki adım yerel minikube'a erişmeli)
-3. **deploy** — image'lar minikube'a yüklenir, manifestler `kubectl apply`
-   ile uygulanır, Deployment'lar `kubectl set image` ile güncellenir,
-   rollout'un tamamlanması beklenir
-4. **smoke-test** — dağıtım sonrası `/`, `/healthz`, `/api/status` gerçekten
-   doğru cevap veriyor mu, çalışan pod içinden test edilir
+2. **build-frontend** / **build-backend** — iki image paralel build
+   edilir (self-hosted runner'da; PostgreSQL için ayrı bir build
+   job'u yoktur çünkü resmi, hazır bir image kullanılır)
+3. **deploy** — image'lar minikube'a yüklenir, tüm manifestler
+   (namespace, secret, db, frontend, backend) `kubectl apply` ile
+   uygulanır, her Deployment'ın rollout'u beklenir
+4. **smoke-test** — dağıtım sonrası `/`, `/healthz`, `/api/status` ve
+   `/api/guestbook` gerçekten doğru cevap veriyor mu, çalışan pod
+   içinden test edilir
 
 ### Self-hosted runner gereksinimi
 
-Bu proje şu an tamamen **yerel bir minikube cluster'ına** dağıtım yaptığı
-için, GitHub'ın bulut runner'ları cluster'a erişemez. Bu yüzden
-build/deploy/smoke-test aşamaları bir **self-hosted runner** üzerinde
-çalışır — bu, projeyi klonlayan herkesin kendi bilgisayarında
-`actions-runner` kurup GitHub'a bağlaması gerektiği anlamına gelir
-(bkz. GitHub → Settings → Actions → Runners → New self-hosted runner).
-Gerçek bir bulut cluster'ına (EKS/GKE) taşınırsa bu gereksinim ortadan
-kalkar, bulut runner'ları yeterli olur.
+Bu proje şu an tamamen **yerel bir minikube cluster'ına** dağıtım
+yaptığı için, GitHub'ın bulut runner'ları cluster'a erişemez. Bu
+yüzden build/deploy/smoke-test aşamaları bir **self-hosted runner**
+üzerinde çalışır (bkz. GitHub → Settings → Actions → Runners → New
+self-hosted runner). Gerçek bir bulut cluster'ına taşınırsa bu
+gereksinim ortadan kalkar.
+
+### Güvenlik notu — Secret dosyası hakkında
+
+`deploy/db-secret.yaml`, öğrenme/demo amacıyla veritabanı şifresini
+düz metin olarak içerir ve bu repoda commitlenmiştir. **Gerçek bir
+üretim projesinde şifreler asla bu şekilde bir public repoya
+gönderilmemelidir** — bunun yerine CI/CD secret yönetimi (GitHub
+Secrets, HashiCorp Vault, Sealed Secrets vb.) kullanılır.
 
 ## Kaldırma
 
 ```bash
 kubectl delete -f deploy/backend.yaml
+kubectl delete -f deploy/db.yaml
+kubectl delete -f deploy/db-secret.yaml
 kubectl delete -f deploy/service.yaml
 kubectl delete -f deploy/deployment.yaml
 kubectl delete -f deploy/namespace.yaml
