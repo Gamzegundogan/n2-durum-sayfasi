@@ -11,6 +11,11 @@
 </head>
 
 <body>
+  <div id="backend-durumu"
+    style="padding: 10px; margin: 10px 0; border-radius: 6px; background: #eef; font-family: monospace; font-size: 14px;">
+    Backend'e bağlanılıyor...
+  </div>
+
   <header class="site-header">
     <a class="brand" href="#top" aria-label="N2 Sistem Durumu ana sayfa">
       <span class="brand-mark" aria-hidden="true">N2</span>
@@ -137,9 +142,6 @@
           <p>
             Güvenlik yamalarının uygulanması sırasında kısa süreli bağlantı
             kesintileri yaşanabilir.
-          <p>
-            deneme1234
-          </p>
           </p>
           <ul class="maintenance-meta" aria-label="Bakım ayrıntıları">
             <li>8 Ağustos 2026</li>
@@ -178,6 +180,19 @@
       <a href="mailto:destek@example.com">destek@example.com</a>
     </p>
   </footer>
+
+  <script>
+    fetch('/api/status')
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        document.getElementById('backend-durumu').textContent =
+          'Backend cevap verdi -> Pod: ' + data.pod + ' | Zaman: ' + data.timestamp;
+      })
+      .catch(function (err) {
+        document.getElementById('backend-durumu').textContent =
+          'Backend\'e ulasilamadi: ' + err;
+      });
+  </script>
 </body>
 
 </html>

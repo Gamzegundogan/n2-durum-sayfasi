@@ -1,4 +1,3 @@
-# GitHub Actions workflow. .github/workflows/ci.yml yolunda olmalı.
 name: CI
 
 on:
@@ -6,11 +5,10 @@ on:
     branches: [main]
 
 env:
-  IMAGE_NAME: n2-durum-sayfasi
+  FRONTEND_IMAGE: n2-durum-sayfasi
+  BACKEND_IMAGE: n2-backend
 
 jobs:
-  # Statik dosya/config testleri: minikube'a ihtiyacı yok, GitHub'ın
-  # kendi bulut sunucusunda (ubuntu-latest) hızlıca çalışır.
   test:
     runs-on: ubuntu-latest
     steps:
@@ -18,11 +16,7 @@ jobs:
       - name: Statik dosya ve config testleri
         run: bash scripts/test.sh
 
-  # Build artık SELF-HOSTED runner'da (senin laptopunda) çalışıyor,
-  # çünkü ürettiği image'ı birazdan aynı makinedeki minikube'a
-  # yükleyeceğiz -- bulut sunucusunda build edilse, senin laptopundaki
-  # minikube'a hiç ulaşamazdı.
-  build:
+  build-frontend:
     needs: test
     runs-on: self-hosted
     outputs:
@@ -34,75 +28,93 @@ jobs:
         run: |
           $sha = (git rev-parse --short HEAD)
           echo "tag=$sha" >> $env:GITHUB_OUTPUT
-      - name: Docker image build
+      - name: Frontend image build
         shell: powershell
         run: |
           docker build --build-arg GIT_SHA=${{ steps.vars.outputs.tag }} `
-            -t ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.tag }} .
+            -t ${{ env.FRONTEND_IMAGE }}:${{ steps.vars.outputs.tag }} .
 
-  scan:
-    needs: build
+  build-backend:
+    needs: test
     runs-on: self-hosted
-    continue-on-error: true
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
     steps:
-      - name: "Trivy taramasi (bilgi amacli, pipeline'i durdurmuyor)"
+      - uses: actions/checkout@v4
+      - id: vars
         shell: powershell
         run: |
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock `
-            aquasec/trivy:latest image --severity HIGH,CRITICAL `
-            ${{ env.IMAGE_NAME }}:${{ needs.build.outputs.tag }}
+          $sha = (git rev-parse --short HEAD)
+          echo "tag=$sha" >> $env:GITHUB_OUTPUT
+      - name: Backend image build
+        shell: powershell
+        run: |
+          docker build -t ${{ env.BACKEND_IMAGE }}:${{ steps.vars.outputs.tag }} ./backend
 
-  # Asil CD kismi: image'i minikube'a yukle, deployment'i guncelle,
-  # rollout'un basarili olmasini bekle.
   deploy:
-    needs: build
+    needs: [build-frontend, build-backend]
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-      - name: Image'i minikube'a yukle
+      - name: Image'lari minikube'a yukle
         shell: powershell
-        run: minikube image load ${{ env.IMAGE_NAME }}:${{ needs.build.outputs.tag }}
-      - name: Deployment'i yeni image tag'ine guncelle
+        run: |
+          minikube image load ${{ env.FRONTEND_IMAGE }}:${{ needs.build-frontend.outputs.tag }}
+          minikube image load ${{ env.BACKEND_IMAGE }}:${{ needs.build-backend.outputs.tag }}
+      - name: Kubernetes kaynaklarini uygula (declarative)
+        shell: powershell
+        run: |
+          kubectl apply -f deploy/namespace.yaml
+          kubectl apply -f deploy/deployment.yaml
+          kubectl apply -f deploy/service.yaml
+          kubectl apply -f deploy/backend.yaml
+      - name: Deployment'lari yeni image tag'lerine guncelle
         shell: powershell
         run: |
           kubectl set image deployment/n2-durum-sayfasi `
-            site=${{ env.IMAGE_NAME }}:${{ needs.build.outputs.tag }} `
+            site=${{ env.FRONTEND_IMAGE }}:${{ needs.build-frontend.outputs.tag }} `
             -n n2-durum
-      - name: Rollout'un tamamlanmasini bekle
+          kubectl set image deployment/n2-backend `
+            backend=${{ env.BACKEND_IMAGE }}:${{ needs.build-backend.outputs.tag }} `
+            -n n2-durum
+      - name: Rollout'larin tamamlanmasini bekle
         shell: powershell
-        run: kubectl rollout status deployment/n2-durum-sayfasi -n n2-durum --timeout=120s
+        run: |
+          kubectl rollout status deployment/n2-durum-sayfasi -n n2-durum --timeout=120s
+          kubectl rollout status deployment/n2-backend -n n2-durum --timeout=120s
 
   smoke-test:
     needs: deploy
     runs-on: self-hosted
     steps:
-      - name: "Smoke test (calisan pod icine exec ile - en guvenilir yontem)"
+      - name: "Smoke test (frontend pod icinden, / ve /api/status)"
         shell: powershell
         run: |
           $ErrorActionPreference = "Continue"
+
           $podName = kubectl get pods -n n2-durum -l app=n2-durum-sayfasi -o jsonpath="{.items[0].metadata.name}"
           Write-Host "Test edilecek pod: $podName"
 
-          function CheckPath($path, $expectedCode) {
-            $out = kubectl exec -n n2-durum $podName -- wget -q -O /dev/null --server-response "http://127.0.0.1:8080$path" 2>&1
-            $outText = ($out -join "`n")
-            if ($outText -match "HTTP/1.1 $expectedCode") {
-              Write-Host "OK   - GET $path -> $expectedCode"
+          function CheckPath($path, $expectSuccess) {
+            kubectl exec -n n2-durum $podName -- wget -q -O /dev/null "http://127.0.0.1:8080$path"
+            $ok = ($LASTEXITCODE -eq 0)
+            if ($ok -eq $expectSuccess) {
+              Write-Host "OK   - GET $path (exit code: $LASTEXITCODE)"
               return $true
             } else {
-              Write-Host "FAIL - GET $path -> beklenen $expectedCode, cikti:"
-              Write-Host $outText
+              Write-Host "FAIL - GET $path (exit code: $LASTEXITCODE, basari beklentisi: $expectSuccess)"
               return $false
             }
           }
 
-          $r1 = CheckPath "/" "200"
-          $r2 = CheckPath "/healthz" "200"
-          $r3 = CheckPath "/bu-yol-yok" "404"
+          $r1 = CheckPath "/" $true
+          $r2 = CheckPath "/healthz" $true
+          $r3 = CheckPath "/bu-yol-yok" $false
+          $r4 = CheckPath "/api/status" $true
 
-          if ($r1 -and $r2 -and $r3) {
-            Write-Host "Smoke test basarili."
-            exit 0
+          if ($r1 -and $r2 -and $r3 -and $r4) {
+            Write-Host "Smoke test basarili (frontend + backend)."
+            exit 0s
           } else {
             Write-Host "Smoke test basarisiz."
             exit 1

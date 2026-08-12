@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n2-backend
+  namespace: n2-durum
+  labels:
+    app: n2-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: n2-backend
+  template:
+    metadata:
+      labels:
+        app: n2-backend
+    spec:
+      containers:
+        - name: backend
+          image: n2-backend:0.1.0
+          ports:
+            - containerPort: 3000
+              name: http
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n2-backend
+  namespace: n2-durum
+spec:
+  selector:
+    app: n2-backend
+  ports:
+    - port: 3000
+      targetPort: http
