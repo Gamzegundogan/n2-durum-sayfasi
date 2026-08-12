@@ -46,6 +46,28 @@
       </div>
     </section>
 
+    <section class="content-section" aria-labelledby="guestbook-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">ZİYARETÇİ DEFTERİ</p>
+          <h2 id="guestbook-title">Bize bir mesaj bırakın</h2>
+        </div>
+      </div>
+
+      <form id="guestbook-form" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+        <input id="guestbook-name" type="text" placeholder="Adınız" required
+          style="flex:1; min-width:120px; padding:8px;">
+        <input id="guestbook-message" type="text" placeholder="Mesajınız" required
+          style="flex:2; min-width:200px; padding:8px;">
+        <button type="submit" style="padding:8px 16px;">Gönder</button>
+      </form>
+
+      <div id="guestbook-status" style="font-size:13px; color:#666; margin-bottom:12px;"></div>
+
+      <ul id="guestbook-list" style="list-style:none; padding:0; display:flex; flex-direction:column; gap:8px;">
+      </ul>
+    </section>
+
     <section class="content-section" aria-labelledby="services-title">
       <div class="section-heading">
         <div>
@@ -192,6 +214,56 @@
         document.getElementById('backend-durumu').textContent =
           'Backend\'e ulasilamadi: ' + err;
       });
+
+    function guestbookListesiYukle() {
+      fetch('/api/guestbook')
+        .then(function (res) { return res.json(); })
+        .then(function (mesajlar) {
+          var liste = document.getElementById('guestbook-list');
+          liste.innerHTML = '';
+          mesajlar.forEach(function (m) {
+            var li = document.createElement('li');
+            li.style.padding = '10px';
+            li.style.background = '#f7f7f7';
+            li.style.borderRadius = '6px';
+            li.textContent = m.name + ': ' + m.message;
+            liste.appendChild(li);
+          });
+        })
+        .catch(function (err) {
+          console.error('Guestbook yuklenemedi:', err);
+        });
+    }
+
+    document.getElementById('guestbook-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var name = document.getElementById('guestbook-name').value;
+      var message = document.getElementById('guestbook-message').value;
+      var statusEl = document.getElementById('guestbook-status');
+
+      statusEl.textContent = 'Gonderiliyor...';
+
+      fetch('/api/guestbook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, message: message })
+      })
+        .then(function (res) {
+          if (!res.ok) { throw new Error('sunucu hatasi'); }
+          return res.json();
+        })
+        .then(function () {
+          statusEl.textContent = 'Mesajiniz eklendi!';
+          document.getElementById('guestbook-name').value = '';
+          document.getElementById('guestbook-message').value = '';
+          guestbookListesiYukle();
+        })
+        .catch(function (err) {
+          statusEl.textContent = 'Hata: mesaj gonderilemedi (' + err.message + ')';
+        });
+    });
+
+    guestbookListesiYukle();
   </script>
 </body>
 
