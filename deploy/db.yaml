@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n2-db-pvc
+  namespace: n2-durum
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n2-db
+  namespace: n2-durum
+  labels:
+    app: n2-db
+spec:
+  replicas: 1
+  # ReadWriteOnce disk ayni anda tek pod'a baglanabilir; RollingUpdate
+  # sirasinda "eski pod hala ayaktayken yeni pod'u baslat" davranisi
+  # disk celismesine yol acar. Recreate: once eskisini kapat, sonra
+  # yeniyi ac.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: n2-db
+  template:
+    metadata:
+      labels:
+        app: n2-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef: { name: n2-db-secret, key: DB_USER }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: n2-db-secret, key: DB_PASSWORD }
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef: { name: n2-db-secret, key: DB_NAME }
+          volumeMounts:
+            - name: db-storage
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: n2-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n2-db
+  namespace: n2-durum
+spec:
+  selector:
+    app: n2-db
+  ports:
+    - port: 5432
+      targetPort: postgres

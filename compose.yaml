@@ -1,15 +1,32 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: n2user
+      POSTGRES_PASSWORD: n2pass
+      POSTGRES_DB: n2db
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: ./backend
+    environment:
+      PGHOST: db
+      PGUSER: n2user
+      PGPASSWORD: n2pass
+      PGDATABASE: n2db
+      PGPORT: 5432
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+
   site:
     build:
       context: .
       args:
         GIT_SHA: ${GIT_SHA:-local}
-    image: n2-durum-sayfasi:${TAG:-dev}
     ports:
       - "8080:8080"
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
-      interval: 15s
-      timeout: 3s
-      retries: 3
-    restart: unless-stopped
+    depends_on:
+      - backend

@@ -17,10 +17,24 @@ spec:
     spec:
       containers:
         - name: backend
-          image: n2-backend:0.1.0
+          image: n2-backend:0.2.0
           ports:
             - containerPort: 3000
               name: http
+          env:
+            - name: PGHOST
+              value: n2-db
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef: { name: n2-db-secret, key: DB_USER }
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef: { name: n2-db-secret, key: DB_PASSWORD }
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef: { name: n2-db-secret, key: DB_NAME }
           resources:
             requests:
               cpu: 20m
