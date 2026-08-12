@@ -65,6 +65,8 @@ jobs:
         shell: powershell
         run: |
           kubectl apply -f deploy/namespace.yaml
+          kubectl apply -f deploy/db-secret.yaml
+          kubectl apply -f deploy/db.yaml
           kubectl apply -f deploy/deployment.yaml
           kubectl apply -f deploy/service.yaml
           kubectl apply -f deploy/backend.yaml
@@ -80,6 +82,7 @@ jobs:
       - name: Rollout'larin tamamlanmasini bekle
         shell: powershell
         run: |
+          kubectl rollout status deployment/n2-db -n n2-durum --timeout=120s
           kubectl rollout status deployment/n2-durum-sayfasi -n n2-durum --timeout=120s
           kubectl rollout status deployment/n2-backend -n n2-durum --timeout=120s
 
@@ -111,6 +114,7 @@ jobs:
           $r2 = CheckPath "/healthz" $true
           $r3 = CheckPath "/bu-yol-yok" $false
           $r4 = CheckPath "/api/status" $true
+          $r5 = CheckPath "/api/guestbook" $true
 
           if ($r1 -and $r2 -and $r3 -and $r4) {
             Write-Host "Smoke test basarili (frontend + backend)."
