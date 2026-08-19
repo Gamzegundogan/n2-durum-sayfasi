@@ -56,7 +56,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-            - name: Image'lari kind cluster'ina yukle
+      - name: Image'lari kind cluster'ina yukle
         shell: powershell
         run: |
           kind load docker-image ${{ env.FRONTEND_IMAGE }}:${{ needs.build-frontend.outputs.tag }} --name n2-cluster
@@ -116,9 +116,9 @@ jobs:
           $r4 = CheckPath "/api/status" $true
           $r5 = CheckPath "/api/guestbook" $true
 
-          if ($r1 -and $r2 -and $r3 -and $r4) {
+          if ($r1 -and $r2 -and $r3 -and $r4 -and $r5) {
             Write-Host "Smoke test basarili (frontend + backend)."
-            exit 0s
+            exit 0
           } else {
             Write-Host "Smoke test basarisiz."
             exit 1
