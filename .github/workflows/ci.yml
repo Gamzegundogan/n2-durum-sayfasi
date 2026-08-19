@@ -56,11 +56,11 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-      - name: Image'lari minikube'a yukle
+            - name: Image'lari kind cluster'ina yukle
         shell: powershell
         run: |
-          minikube image load ${{ env.FRONTEND_IMAGE }}:${{ needs.build-frontend.outputs.tag }}
-          minikube image load ${{ env.BACKEND_IMAGE }}:${{ needs.build-backend.outputs.tag }}
+          kind load docker-image ${{ env.FRONTEND_IMAGE }}:${{ needs.build-frontend.outputs.tag }} --name n2-cluster
+          kind load docker-image ${{ env.BACKEND_IMAGE }}:${{ needs.build-backend.outputs.tag }} --name n2-cluster
       - name: Kubernetes kaynaklarini uygula (declarative)
         shell: powershell
         run: |
