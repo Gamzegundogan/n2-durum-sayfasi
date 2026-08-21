@@ -8,7 +8,7 @@ FROM nginxinc/nginx-unprivileged:1.27-alpine
 # bağlayan etiket (docker build --build-arg GIT_SHA=$(git rev-parse --short HEAD))
 ARG GIT_SHA=unknown
 LABEL org.opencontainers.image.revision="${GIT_SHA}" \
-      org.opencontainers.image.title="n2-durum-sayfasi"
+    org.opencontainers.image.title="n2-durum-sayfasi"
 
 # Varsayılan nginx config'in yerine kendi config'imizi koyuyoruz
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf

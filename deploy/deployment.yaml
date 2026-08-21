@@ -21,13 +21,8 @@ spec:
       labels:
         app: n2-durum-sayfasi
       annotations:
-        # Rollout'un hangi commit'ten geldiğini izlemek için (deploy sırasında
-        # CI tarafından güncellenir): kubectl set image / kustomize image ile
-        # image tag'i git SHA veya semver olarak değişir.
         kubectl.kubernetes.io/change-cause: "init: ilk dagitim"
     spec:
-      # Kubernetes seviyesinde de non-root zorunluluğu -- image zaten
-      # non-root kullanıcıyla geliyor ama bunu policy olarak da garanti ediyoruz.
       securityContext:
         runAsNonRoot: true
         runAsUser: 101
@@ -35,17 +30,13 @@ spec:
           type: RuntimeDefault
       containers:
         - name: site
-          # ÖNEMLİ: "latest" KULLANMA. CI, build'de üretilen semver+SHA
-          # tag'ini burada set eder (örn. kubectl set image veya
-          # kustomize edit set image ile). Yerelde denerken kendi
-          # build ettiğiniz tag'i yazın.
           image: n2-durum-sayfasi:0.1.0
           ports:
             - containerPort: 8080
               name: http
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false # nginx cache dizinlerine yazması gerekiyor
+            readOnlyRootFilesystem: false 
             capabilities:
               drop: ["ALL"]
           readinessProbe:
@@ -63,9 +54,6 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
           resources:
-            # Statik nginx için ölçülen gerçek kullanım çok düşük; başlangıç
-            # değerleri olarak konservatif, küçük değerler seçildi
-            # (gerekçe: docs/architecture.md).
             requests:
               cpu: 20m
               memory: 32Mi

@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Dağıtım sonrası (compose veya kubectl port-forward sonrası) servisin
-# gerçekten trafik verdiğini doğrular.
-#
-# Kullanım:
-#   ./scripts/smoke-test.sh [BASE_URL]
-#   BASE_URL varsayılan: http://localhost:8080
 set -euo pipefail
 
 BASE_URL="${1:-http://localhost:8080}"
